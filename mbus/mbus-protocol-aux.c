@@ -886,7 +886,7 @@ int mbus_variable_value_decode(mbus_data_record *record, double *value_out_real,
                 else  // normal integer
                 {
                     result = mbus_data_int_decode(record->data, 2, &value_out_int);
-                    *value_out_real = value_out_int; 
+                    *value_out_real = value_out_int;
                 }
                 break;
 
@@ -921,7 +921,7 @@ int mbus_variable_value_decode(mbus_data_record *record, double *value_out_real,
                 else  // normal integer
                 {
                     result = mbus_data_int_decode(record->data, 4, &value_out_int);
-                    *value_out_real = value_out_int; 
+                    *value_out_real = value_out_int;
                 }
                 break;
 
@@ -1261,7 +1261,7 @@ mbus_parse_variable_record(mbus_data_record *data)
         MBUS_ERROR("%s: memory allocation error\n", __PRETTY_FUNCTION__);
         return NULL;
     }
-    
+
     record->storage_number = mbus_data_record_storage_number(data);
     record->tariff = mbus_data_record_tariff(data);
     record->device = mbus_data_record_device(data);
@@ -2121,9 +2121,35 @@ mbus_sendrecv_request(mbus_handle *handle, int address, mbus_frame *reply, int m
     return retval;
 }
 
+//------------------------------------------------------------------------------
+// try to ping a device to init the slave and to get the beginning of data records
+//------------------------------------------------------------------------------
+
+int
+mbus_init_slaves(mbus_handle *handle, int address, int debug)
+{
+    int i;
+    for (i=1; i < 3; i++) {
+        if (debug) printf("%s: debug: sending init frame %d to %d\n",__PRETTY_FUNCTION__,i,address);
+        if (mbus_send_ping_frame(handle, address, 1) == -1) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int
+mbus_init_slaves_str(mbus_handle *handle, const char *address, int debug)
+{
+    if (mbus_is_secondary_address(address)) {
+        return mbus_init_slaves(handle,MBUS_ADDRESS_NETWORK_LAYER,debug);
+    } else {
+        return mbus_init_slaves(handle,atoi(address),debug);
+    }
+}
 
 //------------------------------------------------------------------------------
-// send a data request packet to from master to slave and optional purge response
+// send a data request packet from master to slave and optional purge response
 //------------------------------------------------------------------------------
 int
 mbus_send_ping_frame(mbus_handle *handle, int address, char purge_response)
@@ -2279,7 +2305,7 @@ mbus_probe_secondary_address(mbus_handle *handle, const char *mask, char *matchi
                 if (addr == NULL)
                 {
                     // show error message, but procede with scan
-                    MBUS_ERROR("Failed to generate secondary address from M-Bus reply frame: %s\n", 
+                    MBUS_ERROR("Failed to generate secondary address from M-Bus reply frame: %s\n",
                                mbus_error_str());
                     return MBUS_PROBE_NOTHING;
                 }

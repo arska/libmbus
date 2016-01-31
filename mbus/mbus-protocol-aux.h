@@ -97,7 +97,7 @@ typedef struct _mbus_handle {
     void (*recv_event) (unsigned char src_type, const char *buff, size_t len);
     void (*send_event) (unsigned char src_type, const char *buff, size_t len);
     void (*scan_progress) (struct _mbus_handle *handle, const char *mask);
-    void (*found_event) (struct _mbus_handle *handle, mbus_frame *frame);    
+    void (*found_event) (struct _mbus_handle *handle, mbus_frame *frame);
     void *auxdata;
 } mbus_handle;
 
@@ -319,6 +319,28 @@ int mbus_send_user_data_frame(mbus_handle * handle, int address, const unsigned 
  * @return Zero when successful.
  */
 int mbus_sendrecv_request(mbus_handle *handle, int address, mbus_frame *reply, int max_frames);
+
+/**
+ * Init a slave by sending it a ping frame, multiple times if it doesn't answer
+ *
+ * @param handle         Initialized handle
+ * @param address        Address (string)
+ * @param debug          Printf status updates
+ *
+ * @return Zero when successful, 1 if device doesn't answer
+ */
+int mbus_init_slaves_str(mbus_handle *handle, const char *address, int debug);
+
+/**
+ * Init a slave by sending it a ping frame, multiple times if it doesn't answer
+ *
+ * @param handle         Initialized handle
+ * @param address        Address (0-255)
+ * @param debug          Printf status updates
+ *
+ * @return Zero when successful, 1 if device doesn't answer
+ */
+int mbus_init_slaves(mbus_handle *handle, int address, int debug);
 
 /**
  * Sends ping frame to given slave using "unified" handle
