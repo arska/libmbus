@@ -2130,7 +2130,7 @@ mbus_init_slaves(mbus_handle *handle, int address, int debug)
 {
     int i;
     for (i=1; i < 3; i++) {
-        if (debug) printf("%s: debug: sending init frame %d to %d\n",i,address);
+        if (debug) printf("%s: debug: sending init frame %d to %d\n",__PRETTY_FUNCTION__,i,address);
         if (mbus_send_ping_frame(handle, address, 1) == -1) {
             return 0;
         }
