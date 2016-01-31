@@ -63,7 +63,7 @@ main(int argc, char *argv[])
     memset(&reply, 0, sizeof(reply));
     memset(&frame_data, 0, sizeof(frame_data));
 
-    //mbus_parse_set_debug(1);
+    mbus_parse_set_debug(1);
 
     result = mbus_parse(&reply, buff, buff_len);
 
@@ -88,7 +88,7 @@ main(int argc, char *argv[])
     }
 
     //mbus_frame_print(&reply);
-    //mbus_frame_data_print(&frame_data);
+    mbus_frame_data_print(&frame_data);
 
     xml_result = normalized ? mbus_frame_data_xml_normalized(&frame_data) : mbus_frame_data_xml(&frame_data);
 

@@ -219,6 +219,27 @@ typedef struct _mbus_data_variable {
 } mbus_data_variable;
 
 //
+// CUSTOM DATA FORMAT
+//
+typedef struct _mbus_data_custom {
+    unsigned char version;
+    unsigned char index;
+
+    size_t data_len;
+    unsigned char data[180]; // index=01 is 179, index=02 is 180 bytes
+
+    unsigned char more_records_follow;
+
+} mbus_data_custom;
+
+#define MBUS_DATA_CUSTOM_VERSION   1
+#define MBUS_DATA_CUSTOM_INDEX1    1
+#define MBUS_DATA_CUSTOM_LENGTH1 182
+#define MBUS_DATA_CUSTOM_INDEX2    2
+#define MBUS_DATA_CUSTOM_LENGTH2 183
+
+
+//
 // FIXED LENGTH DATA FORMAT
 //
 typedef struct _mbus_data_fixed {
@@ -253,9 +274,11 @@ typedef struct _mbus_data_fixed {
 #define MBUS_DATA_TYPE_FIXED    1
 #define MBUS_DATA_TYPE_VARIABLE 2
 #define MBUS_DATA_TYPE_ERROR    3
+#define MBUS_DATA_TYPE_CUSTOM   4
 
 typedef struct _mbus_frame_data {
 
+    mbus_data_custom   data_custom;
     mbus_data_variable data_var;
     mbus_data_fixed    data_fix;
 
@@ -421,6 +444,9 @@ typedef struct _mbus_data_secondary_address {
 #define MBUS_CONTROL_INFO_RESP_VARIABLE      0x72
 #define MBUS_CONTROL_INFO_RESP_VARIABLE_MSB  0x76
 
+// custom, manufacturer specific, RSP_UD response format for Sontex-devices
+#define MBUS_CONTROL_INFO_RESP_CUSTOM        0xB7
+
 //
 // DATA BITS
 //
@@ -537,6 +563,7 @@ int mbus_parse(mbus_frame *frame, unsigned char *data, size_t data_size);
 
 int mbus_data_fixed_parse   (mbus_frame *frame, mbus_data_fixed    *data);
 int mbus_data_variable_parse(mbus_frame *frame, mbus_data_variable *data);
+int mbus_data_custom_parse  (mbus_frame *frame, mbus_data_custom   *data);
 
 int mbus_frame_data_parse   (mbus_frame *frame, mbus_frame_data *data);
 

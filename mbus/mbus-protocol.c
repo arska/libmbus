@@ -559,9 +559,9 @@ mbus_data_long_decode(unsigned char *int_data, size_t int_data_size, long *value
     {
         return -1;
     }
-    
+
     neg = int_data[int_data_size-1] & 0x80;
-    
+
     for (i = int_data_size; i > 0; i--)
     {
         if (neg)
@@ -911,9 +911,9 @@ mbus_data_product_name(mbus_data_variable_header *header)
             {
                 switch (header->version)
                 {
-            	    case 0x71:
+                  case 0x71:
                         strcpy(buff, "Berg BMB-10S0");
-                        break; 
+                        break;
                 }
             }
         }
@@ -1002,7 +1002,7 @@ mbus_data_product_name(mbus_data_variable_header *header)
                     case 0x40:
                         strcpy(buff,"Carlo Gavazzi EM33");
                         break;
-                    
+
                 }
             }
         }
@@ -2941,6 +2941,76 @@ mbus_data_fixed_parse(mbus_frame *frame, mbus_data_fixed *data)
 
 
 //------------------------------------------------------------------------------
+/// Parse the fixed-length data of a custom M-Bus frame
+//------------------------------------------------------------------------------
+int
+mbus_data_custom_parse(mbus_frame *frame, mbus_data_custom *data)
+{
+    size_t i;
+
+    if (frame && data)
+    {
+        //printf("frame len: %d\n",frame->data_size);
+        //for (i = 0; i < frame->data_size; i++) printf("%2x ",frame->data[i]);
+        //printf("\n");
+
+        if (frame->data_size < MBUS_DATA_CUSTOM_LENGTH1) {
+            snprintf(error_str, sizeof(error_str), "Frame length %d too short for custom data type.",frame->data_size);
+            return -1;
+        }
+        // there should be enough bytes to inspect the version & index fields safely since the length > 182
+
+        data->version = frame->data[0];
+
+        if (data->version != MBUS_DATA_CUSTOM_VERSION) {
+            snprintf(error_str, sizeof(error_str), "Unknown custom data version 0x%.2x.",data->version);
+            return -1;
+        }
+        //printf("version %d %d\n",data->version,MBUS_DATA_CUSTOM_VERSION);
+
+        data->index = frame->data[1];
+        //printf("index %d\n",data->index);
+
+        if ((data->index == MBUS_DATA_CUSTOM_INDEX1) &&
+            (frame->data_size == MBUS_DATA_CUSTOM_LENGTH1)) {
+            // 179 bytes of payload to copy
+            data->data_len = MBUS_DATA_CUSTOM_LENGTH1 - 3;
+        } else if ((data->index == MBUS_DATA_CUSTOM_INDEX2) &&
+                 (frame->data_size == MBUS_DATA_CUSTOM_LENGTH2)) {
+            // 180 bytes of payload to copy
+            data->data_len = MBUS_DATA_CUSTOM_LENGTH2 - 3;
+        } else {
+            snprintf(error_str, sizeof(error_str), "Unknown custom data index 0x%.2x with frame size %d.",data->index,frame->data_size);
+            return -1;
+        }
+
+        //printf("datalen: %d\n",data->data_len);
+
+        // the last char of the frame is the more_records_follow
+        if (frame->data[data->data_len+2] == MBUS_DIB_DIF_MORE_RECORDS_FOLLOW) {
+            data->more_records_follow = 1;
+        } else {
+            data->more_records_follow = 0;
+        }
+
+        //printf("more: %d\n",data->more_records_follow);
+
+        // copy all the data between version/index and more_records_follow
+        for (i = 0; i < data->data_len; i++) {
+            data->data[i] = frame->data[i+2];
+        }
+        //printf("data: ");
+        //for (i = 0; i < data->data_len; i++) printf("%2x ",data->data[i]);
+        //printf("\n");
+
+        return 0;
+    }
+
+    return -1;
+}
+
+
+//------------------------------------------------------------------------------
 /// Parse the variable-length data of a M-Bus frame
 //------------------------------------------------------------------------------
 int
@@ -3220,6 +3290,18 @@ mbus_frame_data_parse(mbus_frame *frame, mbus_frame_data *data)
 
             data->type = MBUS_DATA_TYPE_VARIABLE;
             return mbus_data_variable_parse(frame, &(data->data_var));
+        }
+        else if (frame->control_information == MBUS_CONTROL_INFO_RESP_CUSTOM)
+        {
+            if (frame->data_size == 0)
+            {
+                snprintf(error_str, sizeof(error_str), "Got zero data_size.");
+
+                return -1;
+            }
+
+            data->type = MBUS_DATA_TYPE_CUSTOM;
+            return mbus_data_custom_parse(frame, &(data->data_custom));
         }
         else
         {
@@ -3515,6 +3597,11 @@ mbus_frame_data_print(mbus_frame_data *data)
         {
             return mbus_data_variable_print(&(data->data_var));
         }
+
+        if (data->type == MBUS_DATA_TYPE_CUSTOM)
+        {
+            return mbus_data_custom_print(&(data->data_custom));
+        }
     }
 
     return -1;
@@ -3663,6 +3750,25 @@ mbus_data_fixed_print(mbus_data_fixed *data)
     return -1;
 }
 
+int
+mbus_data_custom_print(mbus_data_custom *data)
+{
+    size_t i;
+
+    if (data)
+    {
+        printf("%s: Version = %2d\n", __PRETTY_FUNCTION__, data->version);
+        printf("%s: Index   = %2d\n", __PRETTY_FUNCTION__, data->index);
+        printf("%s: Length  = %d\n", __PRETTY_FUNCTION__, data->data_len);
+        printf("%s: Data    = ", __PRETTY_FUNCTION__);
+        for (i = 0; i < data->data_len; i++) printf("%2x ",data->data[i]);
+        printf("\n");
+        printf("%s: More    = %d\n", __PRETTY_FUNCTION__, data->more_records_follow);
+    }
+
+    return -1;
+}
+
 void
 mbus_hex_dump(const char *label, const char *buff, size_t len)
 {
@@ -3719,11 +3825,11 @@ mbus_str_xml_encode(unsigned char *dst, const unsigned char *src, size_t max_len
     {
         return -1;
     }
-    
+
     if (src == NULL)
     {
-    	dst[len] = '\0';
-    	return -2;
+      dst[len] = '\0';
+      return -2;
     }
 
     while((len+6) < max_len)
@@ -3859,7 +3965,7 @@ mbus_data_variable_record_xml(mbus_data_record *record, int record_cnt, int fram
             {
                 len += snprintf(&buff[len], sizeof(buff) - len, "        <Tariff>%ld</Tariff>\n",
                                 tariff);
-                len += snprintf(&buff[len], sizeof(buff) - len, "        <Device>%d</Device>\n", 
+                len += snprintf(&buff[len], sizeof(buff) - len, "        <Device>%d</Device>\n",
                                 mbus_data_record_device(record));
             }
 
@@ -3987,7 +4093,7 @@ mbus_data_fixed_xml(mbus_data_fixed *data)
             mbus_data_int_decode(data->cnt1_val, 4, &val);
         }
         len += snprintf(&buff[len], buff_size - len, "        <Value>%d</Value>\n", val);
-        
+
         len += snprintf(&buff[len], buff_size - len, "    </DataRecord>\n\n");
 
         len += snprintf(&buff[len], buff_size - len, "    <DataRecord id=\"1\">\n");
@@ -4006,8 +4112,50 @@ mbus_data_fixed_xml(mbus_data_fixed *data)
             mbus_data_int_decode(data->cnt2_val, 4, &val);
         }
         len += snprintf(&buff[len], buff_size - len, "        <Value>%d</Value>\n", val);
-        
+
         len += snprintf(&buff[len], buff_size - len, "    </DataRecord>\n\n");
+
+        len += snprintf(&buff[len], buff_size - len, "</MBusData>\n");
+
+        return buff;
+    }
+
+    return NULL;
+}
+
+//------------------------------------------------------------------------------
+/// Generate XML representation of custom data frame.
+//------------------------------------------------------------------------------
+char *
+mbus_data_custom_xml(mbus_data_custom *data)
+{
+    char *buff = NULL;
+    char str_encoded[256];
+    size_t len = 0, buff_size = 8192, i = 0;
+    int val;
+
+    if (data)
+    {
+        buff = (char*) malloc(buff_size);
+
+        if (buff == NULL)
+            return NULL;
+
+        len += snprintf(&buff[len], buff_size - len, MBUS_XML_PROCESSING_INSTRUCTION);
+
+        len += snprintf(&buff[len], buff_size - len, "<MBusData>\n\n");
+
+        len += snprintf(&buff[len], buff_size - len, "    <Custom>\n");
+        len += snprintf(&buff[len], buff_size - len, "        <Version>%d</Version>\n", data->version);
+        len += snprintf(&buff[len], buff_size - len, "        <Index>%d</Index>\n", data->index);
+        len += snprintf(&buff[len], buff_size - len, "        <DataLength>%d</DataLength>\n", data->data_len);
+        len += snprintf(&buff[len], buff_size - len, "        <Data>");
+        for (i = 0; i < data->data_len; i++) {
+            len += snprintf(&buff[len], buff_size - len, "%2x ",data->data[i]);
+        }
+        len += snprintf(&buff[len], buff_size - len, "</Data>\n");
+
+        len += snprintf(&buff[len], buff_size - len, "    </Custom>\n\n");
 
         len += snprintf(&buff[len], buff_size - len, "</MBusData>\n");
 
@@ -4068,6 +4216,11 @@ mbus_frame_data_xml(mbus_frame_data *data)
         if (data->type == MBUS_DATA_TYPE_VARIABLE)
         {
             return mbus_data_variable_xml(&(data->data_var));
+        }
+
+        if (data->type == MBUS_DATA_TYPE_CUSTOM)
+        {
+            return mbus_data_custom_xml(&(data->data_custom));
         }
     }
 
