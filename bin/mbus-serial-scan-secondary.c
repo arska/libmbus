@@ -138,6 +138,7 @@ main(int argc, char **argv)
 
     if (mbus_init_slaves(handle,MBUS_ADDRESS_NETWORK_LAYER,debug) == 0)
     {
+        fprintf(stderr, "Failed to set reset frame.\n");
         free(addr_mask);
         return 1;
     }

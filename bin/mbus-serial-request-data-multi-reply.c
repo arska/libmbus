@@ -104,6 +104,7 @@ main(int argc, char **argv)
 
     if (mbus_init_slaves_str(handle,addr_str,debug) == 0)
     {
+        fprintf(stderr,"Failed to send reset ping to %s\n",addr_str);
         mbus_disconnect(handle);
         mbus_context_free(handle);
         return 1;
